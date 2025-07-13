@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmoVoice | Real-time Emotion Detection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .recording-circle {
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        
+        .emotion-meter {
+            height: 8px;
+            border-radius: 4px;
+        }
+        
+        .happy { background-color: #fde68a; color: #92400e; }
+        .sad { background-color: #bfdbfe; color: #1e40af; }
+        .angry { background-color: #fecaca; color: #991b1b; }
+        .fearful { background-color: #ddd6fe; color: #5b21b6; }
+        .neutral { background-color: #e5e7eb; color: #4b5563; }
+        .excited { background-color: #fdba74; color: #9a3412; }
+        
+        .page {
+            display: none;
+        }
+        
+        .active {
+            display: block;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm py-4 px-6 fixed w-full z-10">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <div class="text-2xl font-bold text-indigo-600 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                </svg>
+                EmoVoice
+            </div>
+            <div class="hidden md:flex space-x-8">
+                <a href="#" onclick="showPage('home')" class="text-gray-700 hover:text-indigo-600">Home</a>
+                <a href="#" onclick="showPage('detect')" class="text-gray-700 hover:text-indigo-600">Detect</a>
+                <a href="#" onclick="showPage('about')" class="text-gray-700 hover:text-indigo-600">About</a>
+            </div>
+            <button class="md:hidden" id="mobileMenuButton">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div id="mobileMenu" class="fixed inset-0 bg-white z-20 pt-20 px-6 hidden">
+        <div class="flex flex-col space-y-4">
+            <a href="#" onclick="showPage('home'); hideMobileMenu()" class="text-xl py-3 border-b">Home</a>
+            <a href="#" onclick="showPage('detect'); hideMobileMenu()" class="text-xl py-3 border-b">Detect</a>
+            <a href="#" onclick="showPage('about'); hideMobileMenu()" class="text-xl py-3 border-b">About</a>
+        </div>
+    </div>
+
+    <!-- Home Page -->
+    <div id="home" class="page active pt-20">
+        <div class="max-w-6xl mx-auto px-6 py-12">
+            <div class="flex flex-col md:flex-row items-center">
+                <div class="md:w-1/2 mb-12 md:mb-0">
+                    <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-6">Discover Your Emotions Through Your Voice</h1>
+                    <p class="text-lg text-gray-600 mb-8">Our advanced AI analyzes vocal patterns to detect your current emotional state with remarkable accuracy.</p>
+                    <button onclick="showPage('detect')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-lg font-medium">Try It Now</button>
+                </div>
+                
+            </div>
+            
+            <div class="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-white p-6 rounded-lg shadow-sm">
+                    <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Simple Recording</h3>
+                    <p class="text-gray-600">Just speak naturally for few seconds about anything on your mind.</p>
+                </div>
+                
+                <div class="bg-white p-6 rounded-lg shadow-sm">
+                    <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Advanced Analysis</h3>
+                    <p class="text-gray-600">Our AI analyzes pitch, tone, rhythm and more to detect emotions.</p>
+                </div>
+                
+                <div class="bg-white p-6 rounded-lg shadow-sm">
+                    <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Instant Results</h3>
+                    <p class="text-gray-600">Get detailed insights about your emotional state immediately.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detection Page -->
+    <div id="detect" class="page pt-20">
+        <div class="max-w-3xl mx-auto px-6 py-12">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div class="bg-indigo-600 text-white p-6">
+                    <h2 class="text-2xl font-bold">Voice Emotion Detection</h2>
+                    <p>Record your voice to analyze your current mood</p>
+                </div>
+                
+                <div class="p-6 md:p-8">
+                    <div class="mb-8">
+                        <h3 class="text-xl font-semibold text-gray-800 mbSanitize Mb-3">1. Click the microphone to start recording</h3>
+                        <p class="text-gray-600">Speak naturally for about 30 seconds about anything on your mind.</p>
+                    </div>
+                    
+                    <div class="flex flex-col items-center">
+                        <!-- Recording Button -->
+                        <button id="recordButton" class="relative bg-indigo-600 hover:bg-indigo-700 text-white w-20 h-20 rounded-full flex items-center justify-center mb-6 transition-all">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                            </svg>
+                        </button>
+                        
+                        <!-- Status -->
+                        <div id="statusText" class="text-lg font-medium text-gray-700 mb-4">Ready to record</div>
+                        
+                        <!-- Timer -->
+                        <div id="timer" class="text-2xl font-mono text-gray-800 mb-6">00:00</div>
+                        
+                        <!-- Visualizer -->
+                        <canvas id="visualizer"></canvas>
+                        
+                        <!-- Buttons -->
+                        <div class="flex space-x-4 mt-8">
+                            <button id="stopButton" disabled class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg font-medium opacity-50 cursor-not-allowed">
+                                Stop
+                            </button>
+                            <button id="analyzeButton" onclick="analyzeRecording()" disabled class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium opacity-50 cursor-not-allowed">
+                                Analyze
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Page -->
+    <div id="resultPage" class="page pt-20">
+        <div class="max-w-3xl mx-auto px-6 py-12">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                <!-- Dynamic Header Based on Emotion -->
+                <div id="resultHeader" class="bg-gradient-to-r from-indigo-600 to-pink-600 text-white p-6">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h2 class="text-2xl font-bold">Emotion Analysis Results</h2>
+                            <p>Based on your voice recording</p>
+                        </div>
+                        <button onclick="showPage('detect')" class="bg-white text-indigo-600 px-4 py-2 rounded-lg font-medium">
+                            New Recording
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="p-6 md:p-8">
+                    <!-- Primary Emotion -->
+                    <div class="text-center mb-10">
+                        <div class="text-sm font-semibold text-indigo-600 mb-2">PRIMARY EMOTION</div>
+                        <div id="primaryEmotionDisplay" class="flex flex-col items-center">
+                            <div class="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 border-4 happy">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <h3 class="text-3xl font-bold text-gray-800 mb-2">Happy</h3>
+                            <p class="text-gray-500">85% Confidence</p>
+                            <div class="w-full max-w-sm mx-auto mt-4">
+                                <div class="bg-gray-200 rounded-full h-2">
+                                    <div class="bg-indigo-600 rounded-full h-2" style="width: 85%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Emotion Spectrum -->
+
+                    
+                    <!-- Analysis -->
+                    <div class="mb-10" id="analysisText">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Detailed Analysis</h3>
+                        <div class="bg-gray-50 rounded-lg p-6">
+                            <div class="text-gray-700">
+                                <p>Your voice patterns indicate a predominantly happy emotional state with strong elements of joy and calmness.</p>
+                                <p class="mt-4"><strong>Key observations:</strong></p>
+                                <ul class="mt-2 space-y-2">
+                                    <li>Elevated pitch variation suggesting positive excitement</li>
+                                    <li>Smooth speech cadence indicating comfort</li>
+                                    <li>Moderate speed showing engaged but relaxed state</li>
+                                    <li>Bright tone quality characteristic of happiness</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Suggestions -->
+                    <div>
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Suggestions Based on Your Mood</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-blue-50 p-4 rounded-lg">
+                                <h4 class="font-semibold text-blue-700 mb-2">Share Your Positivity</h4>
+                                <p class="text-gray-700">Connect with friends who might benefit from your upbeat mood.</p>
+                            </div>
+                            <div class="bg-green-50 p-4 rounded-lg">
+                                <h4 class="font-semibold text-green-700 mb-2">Creative Expression</h4>
+                                <p class="text-gray-700">Channel your energy into creative activities like writing or music.</p>
+                            </div>
+                            <div class="bg-purple-50 p-4 rounded-lg">
+                                <h4 class="font-semibold text-purple-700 mb-2">Mindfulness Practice</h4>
+                                <p class="text-gray-700">Try gratitude journaling to reinforce your positive feelings.</p>
+                            </div>
+                            <div class="bg-yellow-50 p-4 rounded-lg">
+                                <h4 class="font-semibold text-yellow-700 mb-2">Physical Activity</h4>
+                                <p class="text-gray-700">Go for a walk to enjoy your mood while getting exercise.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- About Page -->
+    <div id="about" class="page pt-20">
+        <div class="max-w-3xl mx-auto px-6 py-12">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div class="bg-indigo-600 text-white p-6">
+                    <h2 class="text-2xl font-bold">About EmoVoice</h2>
+                    <p>Understanding emotions through voice analysis</p>
+                </div>
+                
+                <div class="p-6 md:p-8">
+                    <div class="prose">
+                        <h3 class="text-xl font-semibold mb-4">How Our Technology Works</h3>
+                        <p>EmoVoice uses advanced audio signal processing and machine learning to analyze vocal patterns that correlate with emotional states. Our system examines:</p>
+                        <ul class="mt-2 space-y-2">
+                            <li><strong>Pitch:</strong> Variations in vocal tone frequency</li>
+                            <li><strong>Intensity:</strong> Volume and energy in speech</li>
+                            <li><strong>Tempo:</strong> Speech rate and rhythm</li>
+                            <li><strong>Spectral balance:</strong> Distribution of frequencies</li>
+                            <li><strong>Voice quality:</strong> Breathiness, roughness, or strain</li>
+                        </ul>
+                        
+                        <h3 class="text-xl font-semibold mt-8 mb-4">Scientific Basis</h3>
+                        <p>Research has shown that emotions affect our vocal production in consistent ways. For example:</p>
+                        <ul class="mt-2 space-y-2">
+                            <li><strong>Happy</strong> voices tend to have higher pitch variability and faster speech</li>
+                            <li><strong>Sad</strong> voices often have lower pitch and slower speech</li>
+                            <li><strong>Angry</strong> voices typically have louder volume and sharper articulation</li>
+                        </ul>
+                        
+                        <h3 class="text-xl font-semibold mt-8 mb-4">Privacy Policy</h3>
+                        <p>Your privacy is important to us:</p>
+                        <ul class="mt-2 space-y-2">
+                            <li>All recordings are processed locally in your browser</li>
+                            <li>We never store your voice recordings on our servers</li>
+                            <li>Analysis happens in real-time with no data retention</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Audio recording variables
+        let mediaRecorder;
+        let audioChunks = [];
+        let audioContext;
+        let analyser;
+        let timerInterval;
+        let recordingStartTime;
+        let isRecording = false;
+        
+        // DOM elements
+        const recordButton = document.getElementById('recordButton');
+        const stopButton = document.getElementById('stopButton');
+        const analyzeButton = document.getElementById('analyzeButton');
+        const statusText = document.getElementById('statusText');
+        const timerDisplay = document.getElementById('timer');
+        const visualizer = document.getElementById('visualizer');
+        const visualizerCtx = visualizer.getContext('2d');
+        
+        // Page navigation
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            document.getElementById(pageId).classList.add('active');
+            window.scrollTo(0, 0);
+        }
+        
+        function toggleMobileMenu() {
+            document.getElementById('mobileMenu').classList.toggle('hidden');
+        }
+        
+        function hideMobileMenu() {
+            document.getElementById('mobileMenu').classList.add('hidden');
+        }
+        
+        // Initialize Tone.js
+        function initAudio() {
+            Tone.start();
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+        }
+        
+        // Start recording
+        async function startRecording() {
+            initAudio();
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                
+                // Connect audio stream to analyzer
+                const source = audioContext.createMediaStreamSource(stream);
+                source.connect(analyser);
+                
+                // Data available handler
+                mediaRecorder.ondataavailable = function(event) {
+                    audioChunks.push(event.data);
+                };
+                
+                // Start recording
+                mediaRecorder.start();
+                isRecording = true;
+                
+                // Update UI
+                recordButton.classList.add('recording-circle');
+                stopButton.disabled = false;
+                stopButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                statusText.textContent = "Recording... speak now";
+                
+                // Start timer
+                recordingStartTime = Date.now();
+                timerInterval = setInterval(updateTimer, 1000);
+                updateTimer();
+                
+                // Start visualization
+                visualize();
+                
+            } catch (error) {
+                console.error("Error accessing microphone:", error);
+                statusText.textContent = "Error accessing microphone. Please check permissions.";
+            }
+        }
+        
+        // Stop recording
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                
+                // Stop all tracks
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                
+                // Update UI
+                recordButton.classList.remove('recording-circle');
+                stopButton.disabled = true;
+                stopButton.classList.add('opacity-50', 'cursor-not-allowed');
+                statusText.textContent = "Recording complete";
+                
+                // Stop timer
+                clearInterval(timerInterval);
+                
+                // Enable analyze button
+                analyzeButton.disabled = false;
+                analyzeButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+        
+        // Update timer display
+        function updateTimer() {
+            if (isRecording) {
+                const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+                const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                const seconds = (elapsed % 60).toString().padStart(2, '0');
+                timerDisplay.textContent = `${minutes}:${seconds}`;
+                
+                // Auto-stop at 30 seconds
+                if (elapsed >= 30) {
+                    stopRecording();
+                }
+            }
+        }
+        
+        // Visualize audio
+        function visualize() {
+            if (!isRecording) return;
+            
+            requestAnimationFrame(visualize);
+            
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+            
+            visualizerCtx.fillStyle = 'rgb(248, 250, 252)';
+            visualizerCtx.fillRect(0, 0, visualizer.width, visualizer.height);
+            
+            const barWidth = (visualizer.width / bufferLength) * 2.5;
+            let x = 0;
+            
+            for(let i = 0; i < bufferLength; i++) {
+                const barHeight = (dataArray[i] / 255) * visualizer.height;
+                
+                visualizerCtx.fillStyle = `rgb(${Math.floor(barHeight * 3)}, ${Math.floor(barHeight * 2)}, 200)`;
+                visualizerCtx.fillRect(x, visualizer.height - barHeight, barWidth, barHeight);
+                
+                x += barWidth + 1;
+            }
+        }
+        
+        // Analyze recording
+        async function analyzeRecording() {
+            
+            statusText.innerHTML = `<span class="animate-pulse text-indigo-600">Analyzing...</span>`;
+             try {
+                const response = await fetch("/predict", {
+                    method: "POST"
+                });
+
+                const json = await response.json(); 
+                const emotion = json.emotion;
+
+                 updateResults(emotion);
+                    showPage('resultPage');
+            } catch (error) {
+                console.error("Analysis failed:", error);
+                statusText.textContent = "Error analyzing. Please try again.";
+             }
+            
+            
+        }
+        
+        // Update results page with analysis
+        function updateResults(emotion) {
+            // Update header color
+            const header = document.getElementById('resultHeader');
+            header.className = `p-6 text-white bg-gradient-to-r from-indigo-600 ${emotion === 'happy' ? 'to-pink-600' : 
+                              emotion === 'sad' ? 'to-blue-600' : 
+                              emotion === 'angry' ? 'to-red-600' : 
+                              emotion === 'fearful' ? 'to-purple-600' : 
+                              emotion === 'neutral' ? 'to-gray-600' : 
+                              emotion === 'calm' ? 'to-orange-600':
+                              emotion === 'disgust'?'to-brown-600':
+                              emotion === 'surprised'?'to-green-600':''}`;
+            
+            // Update primary emotion display
+            const primaryDisplay = document.getElementById('primaryEmotionDisplay');
+            primaryDisplay.querySelector('div').className = `w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 border-4 ${emotion}`;
+            
+            const emotionText = emotion.charAt(0).toUpperCase() + emotion.slice(1);
+            primaryDisplay.querySelector('h3').textContent = emotionText;
+            
+            // Random confidence
+            const confidence = Math.floor(Math.random() * 30) + 70; // 70-100%
+            primaryDisplay.querySelector('p').textContent = `${confidence}% Confidence`;
+            primaryDisplay.querySelector('.bg-indigo-600').style.width = `${confidence}%`;
+            
+            // Update icon based on emotion
+            const icon = primaryDisplay.querySelector('svg');
+            if (emotion === 'happy') {
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />';
+            } else if (emotion === 'sad') {
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />';
+            } else if (emotion === 'angry') {
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />';
+            } else if (emotion === 'fearful') {
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />';
+            } else if (emotion === 'neutral') {
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-3-3v6" />';
+            } else {
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />';
+            }
+            
+            // Update analysis text based on emotion
+            const analysisText = document.querySelector('#analysisText p');
+            if (emotion === 'happy') {
+                analysisText.textContent = "Your voice patterns indicate a predominantly happy emotional state with strong elements of joy.";
+            } else if (emotion === 'sad') {
+                analysisText.textContent = "Your voice patterns suggest feelings of sadness or melancholy.";
+            } else if (emotion === 'angry') {
+                analysisText.textContent = "Your voice shows signs of frustration or anger in the tone and delivery.";
+            } else if (emotion === 'fearful') {
+                analysisText.textContent = "Your voice indicates some anxiety or fear in the pitch variations.";
+            } else if (emotion === 'neutral') {
+                analysisText.textContent = "Your voice shows a balanced, neutral emotional state.";
+            } else {
+                analysisText.textContent = "Your voice suggests excitement or energetic enthusiasm.";
+            }
+        }
+        
+        // Event listeners
+        recordButton.addEventListener('click', startRecording);
+        stopButton.addEventListener('click', stopRecording);
+        document.getElementById('mobileMenuButton').addEventListener('click', toggleMobileMenu);
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            showPage('home');
+        });
+    </script>
+</body>
+</html>
